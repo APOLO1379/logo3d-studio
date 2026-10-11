@@ -3,7 +3,7 @@ import sys
 import os
 import math
 
-# Limpiar escena
+# 1. Limpiar escena completamente
 bpy.ops.wm.read_factory_settings(use_empty=True)
 
 args = sys.argv[sys.argv.index("--") + 1:]
@@ -13,7 +13,7 @@ efecto = args[2]
 material_tipo = args[3]  
 output_path = args[4]    
 
-# 1. Configurar Entorno e Iluminación de Fondo
+# 2. Configurar Entorno e Iluminación
 world = bpy.data.worlds.new("WorldStudio")
 bpy.context.scene.world = world
 world.use_nodes = True
@@ -21,59 +21,70 @@ nodes_w = world.node_tree.nodes
 nodes_w.clear()
 
 node_background = nodes_w.new(type='ShaderNodeBackground')
-node_background.inputs['Color'].default_value = (0.9, 0.9, 0.9, 1.0)
-node_background.inputs['Strength'].default_value = 1.0
+node_background.inputs['Color'].default_value = (0.85, 0.85, 0.85, 1.0)
+node_background.inputs['Strength'].default_value = 1.2
 
 node_output = nodes_w.new(type='ShaderNodeOutputWorld')
 world.node_tree.links.new(node_background.outputs['Background'], node_output.inputs['Surface'])
 
-# 2. Luces
+# Luz Sol para reflejos
 bpy.ops.object.light_add(type='SUN', location=(5, -5, 10))
 luz_sol = bpy.context.object
-luz_sol.data.energy = 3.0
+luz_sol.data.energy = 4.0
 
-# 3. Importar y Normalizar Escala/Posición del Logo
+# 3. Importar Geometría y Centrar Bounding Box
 if modo == "texto":
     bpy.ops.object.text_add(location=(0, 0, 0))
-    obj = bpy.context.object
-    obj.data.body = contenido
-    obj.data.align_x = 'CENTER'
-    obj.data.align_y = 'CENTER'
-    obj.data.extrude = 0.15
-    obj.data.bevel_depth = 0.02
-    obj.rotation_euler = (math.radians(90), 0, 0)
+    target_obj = bpy.context.object
+    target_obj.data.body = contenido
+    target_obj.data.align_x = 'CENTER'
+    target_obj.data.align_y = 'CENTER'
+    target_obj.data.extrude = 0.15
+    target_obj.data.bevel_depth = 0.02
+    target_obj.rotation_euler = (math.radians(90), 0, 0)
+    
 elif modo == "svg":
     bpy.ops.import_curve.svg(filepath=contenido)
     curvas = [o for o in bpy.context.selected_objects if o.type == 'CURVE']
     
     if curvas:
-        # Seleccionar todas las curvas
-        for o in curvas:
-            o.data.extrude = 0.05
-            o.data.bevel_depth = 0.01
-            o.select_set(True)
-            bpy.context.view_layer.objects.active = o
+        # Dar extrusión a cada trazado SVG
+        for c in curvas:
+            c.data.extrude = 0.05
+            c.data.bevel_depth = 0.01
             
-        # Unir todas las curvas del SVG en un solo objeto para control de escala
-        bpy.ops.object.join()
-        obj = bpy.context.active_object
+        # Crear un objeto Padre (Empty) en el centro geométrico del SVG
+        bpy.ops.object.empty_add(type='PLAIN_AXES', location=(0, 0, 0))
+        parent_empty = bpy.context.object
         
-        # Orientar hacia la cámara
-        obj.rotation_euler = (math.radians(90), 0, 0)
+        # Calcular los límites (bounding box) reales de todas las curvas juntas
+        min_x = min([c.location.x for c in curvas])
+        max_x = max([c.location.x for c in curvas])
+        min_y = min([c.location.y for c in curvas])
+        max_y = max([c.location.y for c in curvas])
         
-        # Reestablecer origen al centro de la geometría
-        bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
-        obj.location = (0, 0, 0)
+        center_x = (min_x + max_x) / 2.0
+        center_y = (min_y + max_y) / 2.0
         
-        # Ajustar dimensiones a un tamaño estándar (aprox. 2 unidades de ancho)
-        max_dim = max(obj.dimensions.x, obj.dimensions.z, 0.0001)
-        scale_factor = 2.0 / max_dim
-        obj.scale = (scale_factor, scale_factor, scale_factor)
+        # Parentar y mover al centro de la escena (0,0,0)
+        for c in curvas:
+            c.parent = parent_empty
+            c.location.x -= center_x
+            c.location.y -= center_y
+            
+        # Rotar de frente a la cámara y escalar a un tamaño estándar (2 unidades)
+        parent_empty.rotation_euler = (math.radians(90), 0, 0)
+        
+        max_size = max(abs(max_x - min_x), abs(max_y - min_y), 0.001)
+        scale = 2.5 / max_size
+        parent_empty.scale = (scale, scale, scale)
+        
+        target_obj = parent_empty
 
-# 4. Configurar Cámara apuntando al centro
-bpy.ops.object.camera_add(location=(0, -4.5, 0), rotation=(math.radians(90), 0, 0))
-camara = bpy.context.object
-bpy.context.scene.camera = camara
+# 4. Configurar Cámara en posición fija frontal
+bpy.ops.object.camera_add(location=(0, -5, 0), rotation=(math.radians(90), 0, 0))
+cam = bpy.context.object
+bpy.context.scene.camera = cam
 
 # 5. Aplicar Material Metalizado
 mat = bpy.data.materials.new(name="MaterialMetalico")
@@ -83,30 +94,31 @@ bsdf = mat.node_tree.nodes.get("Principled BSDF")
 if material_tipo == "oro":
     bsdf.inputs['Base Color'].default_value = (1.0, 0.766, 0.055, 1)
     bsdf.inputs['Metallic'].default_value = 1.0
-    bsdf.inputs['Roughness'].default_value = 0.2
+    bsdf.inputs['Roughness'].default_value = 0.15
 elif material_tipo == "cromo":
     bsdf.inputs['Base Color'].default_value = (0.9, 0.9, 0.9, 1)
     bsdf.inputs['Metallic'].default_value = 1.0
     bsdf.inputs['Roughness'].default_value = 0.05
 
-if 'obj' in locals():
-    obj.data.materials.append(mat)
+for o in bpy.data.objects:
+    if o.type == 'CURVE' or o.type == 'FONT':
+        o.data.materials.append(mat)
 
-# 6. Animación
+# 6. Animación de Rotación (360 grados en 60 frames)
 scene = bpy.context.scene
 scene.frame_start = 1
 scene.frame_end = 60
 
-if efecto == "rotacion" and 'obj' in locals():
-    obj.rotation_mode = 'XYZ'
-    obj.keyframe_insert(data_path="rotation_euler", index=2, frame=1)
-    obj.rotation_euler[2] = math.radians(360)
-    obj.keyframe_insert(data_path="rotation_euler", index=2, frame=60)
+if efecto == "rotacion" and 'target_obj' in locals():
+    target_obj.rotation_mode = 'XYZ'
+    target_obj.keyframe_insert(data_path="rotation_euler", index=2, frame=1)
+    target_obj.rotation_euler[2] = math.radians(360)
+    target_obj.keyframe_insert(data_path="rotation_euler", index=2, frame=60)
 
-# 7. Render Cycles CPU ultra rápido (4 muestras) para evitar lag en Streamlit Cloud
+# 7. Motor Cycles CPU optimizado (8 samples para render súper liviano)
 scene.render.engine = 'CYCLES'
 scene.cycles.device = 'CPU'
-scene.cycles.samples = 4
+scene.cycles.samples = 8
 scene.cycles.use_denoising = False
 
 scene.render.image_settings.file_format = 'FFMPEG'
