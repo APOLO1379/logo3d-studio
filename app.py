@@ -1,10 +1,8 @@
 import streamlit as st
 import subprocess
 import os
-import cv2
 import numpy as np
 from PIL import Image
-import potracer
 
 st.set_page_config(page_title="Studio 3D Logos", layout="wide")
 st.title("🎬 Creador & Animador de Logos 3D")
@@ -24,20 +22,22 @@ with col_left:
     else:
         file_png = st.file_uploader("Sube tu logo en PNG:", type=["png"])
         if file_png is not None:
-            # Procesar imagen con potracer
-            img = Image.open(file_png).convert('L')
-            data = np.array(img) < 128
-            bmp = potracer.Bitmap(data)
-            path = bmp.trace()
+            # Guardar PNG temporalmente
+            temp_png = "temp_input.png"
+            temp_bmp = "temp_input.bmp"
+            svg_path = os.path.abspath("temp_logo.svg")
             
-            svg_path = "temp_logo.svg"
-            with open(svg_path, "w") as f:
-                f.write(f'<svg xmlns="http://www.w3.org/2000/svg" width="{img.width}" height="{img.height}">')
-                for curve in path:
-                    f.write('<path d="M ' + ' L '.join([f"{pt.x},{pt.y}" for pt in curve.start_point]) + ' Z" fill="black"/>')
-                f.write('</svg>')
+            img = Image.open(file_png).convert('RGBA')
             
-            contenido = os.path.abspath(svg_path)
+            # Crear silueta monocromática para vectorizar
+            alpha = np.array(img)[:, :, 3]
+            silueta = Image.fromarray((alpha > 128).astype(np.uint8) * 255)
+            silueta.save(temp_bmp)
+            
+            # Usar potrace instalado en el sistema Linux
+            subprocess.run(["potrace", temp_bmp, "-s", "-o", svg_path], check=True)
+            
+            contenido = svg_path
             modo_script = "svg"
             st.image(file_png, caption="Logo cargado", width=200)
 
