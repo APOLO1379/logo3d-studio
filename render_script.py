@@ -40,7 +40,6 @@ if modo == "texto":
     obj.rotation_euler = (math.radians(90), 0, 0)
 elif modo == "svg":
     bpy.ops.import_curve.svg(filepath=contenido)
-    # Filtrar solo objetos tipo CURVE para evitar tocar luces o cámaras
     curvas_importadas = [o for o in bpy.context.selected_objects if o.type == 'CURVE']
     for o in curvas_importadas:
         o.data.extrude = 0.1
@@ -78,16 +77,20 @@ if efecto == "rotacion" and 'obj' in locals():
     obj.rotation_euler[2] = math.radians(360)
     obj.keyframe_insert(data_path="rotation_euler", index=2, frame=60)
 
-# 6. Configurar Renderizado EEVEE
+# 6. Configurar Renderizado EEVEE y salida MP4 (Compatible con Blender 3.x y 4.x)
 try:
     scene.render.engine = 'BLENDER_EEVEE'
 except Exception:
     scene.render.engine = 'CYCLES'
 
 scene.render.image_settings.file_format = 'FFMPEG'
-scene.ffmpeg.format = 'MPEG4'
-scene.ffmpeg.codec = 'H264'
 scene.render.filepath = output_path
 
-# Renderizar
+# Ajustar parámetros de FFMPEG según la versión de API
+ffmpeg_settings = getattr(scene.render, 'ffmpeg', getattr(scene, 'ffmpeg', None))
+if ffmpeg_settings:
+    ffmpeg_settings.format = 'MPEG4'
+    ffmpeg_settings.codec = 'H264'
+
+# Renderizar animación
 bpy.ops.render.render(animation=True)
