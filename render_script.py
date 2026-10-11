@@ -85,13 +85,17 @@ if efecto == "rotacion" and 'obj' in locals():
             o.rotation_euler[2] = math.radians(360)
             o.keyframe_insert(data_path="rotation_euler", index=2, frame=60)
 
-# 6. Renderizado (Desactivando denoising estricto para evitar fallos del servidor)
-scene.render.engine = 'BLENDER_WORKBENCH' if hasattr(bpy.types, 'BLENDER_WORKBENCH') else 'BLENDER_EEVEE'
+# 6. Selección inteligente del motor de render según la versión exacta de Blender 4.3+
+engine_assigned = False
+for engine_name in ['BLENDER_EEVEE_NEXT', 'BLENDER_EEVEE', 'CYCLES']:
+    try:
+        scene.render.engine = engine_name
+        engine_assigned = True
+        break
+    except Exception:
+        continue
 
-# Forzar desactivación de denoise en caso de que Cycles se active
-if hasattr(scene, "cycles"):
-    scene.cycles.use_denoising = False
-
+# Configuración de salida en formato MP4 FFMPEG
 scene.render.image_settings.file_format = 'FFMPEG'
 scene.render.filepath = output_path
 
