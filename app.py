@@ -47,9 +47,11 @@ with col_right:
     st.subheader("3. Vista Previa / Resultado")
     if btn_generar and contenido:
         with st.spinner("Blender está renderizando la animación en 3D..."):
-            # Limpiar videos viejos
-            for f in glob.glob("*.mp4"):
-                os.remove(f)
+            # Limpiar archivos previos
+            for f in glob.glob("*.mp4") + glob.glob("*.png"):
+                if f != "temp_input.png":
+                    try: os.remove(f)
+                    except: pass
                 
             output_video = os.path.abspath("logo_3d.mp4")
                 
@@ -66,14 +68,11 @@ with col_right:
             
             result = subprocess.run(cmd, capture_output=True, text=True)
             
-            # Detectar el video generado sin importar el nombre exacto que le ponga Blender
+            # Buscar video generado
             archivos_mp4 = glob.glob("*.mp4")
-            video_final = None
             
-            if archivos_mp4:
+            if archivos_mp4 and os.path.getsize(archivos_mp4[0]) > 0:
                 video_final = archivos_mp4[0]
-
-            if video_final and os.path.getsize(video_final) > 0:
                 with open(video_final, "rb") as file:
                     video_bytes = file.read()
                     
@@ -85,6 +84,10 @@ with col_right:
                     mime="video/mp4",
                     use_container_width=True
                 )
-            else:
-                st.error("Error al generar el video.")
+            
+            # Mostrar la salida técnica de Blender para saber exactamente qué encuadre hizo
+            st.subheader("📋 Diagnóstico de Renderizado")
+            st.code(result.stdout if result.stdout else "Sin salida estándar")
+            if result.stderr:
+                st.error("Mensajes de error de Blender:")
                 st.code(result.stderr)
