@@ -1,6 +1,4 @@
 blender
 potrace
-libegl1-mesa
-libgl1-mesa-glx
-libgles2-mesa
-libglib2.0-0
+libgl1
+libegl1
