@@ -85,17 +85,13 @@ if efecto == "rotacion" and 'obj' in locals():
             o.rotation_euler[2] = math.radians(360)
             o.keyframe_insert(data_path="rotation_euler", index=2, frame=60)
 
-# 6. Selección inteligente del motor de render según la versión exacta de Blender 4.3+
-engine_assigned = False
-for engine_name in ['BLENDER_EEVEE_NEXT', 'BLENDER_EEVEE', 'CYCLES']:
-    try:
-        scene.render.engine = engine_name
-        engine_assigned = True
-        break
-    except Exception:
-        continue
+# 6. Motor CYCLES por CPU optimizado para servidor headless
+scene.render.engine = 'CYCLES'
+scene.cycles.device = 'CPU'
+scene.cycles.samples = 16  # Pocas muestras para renderizado ultrarrápido
+scene.cycles.use_denoising = False
 
-# Configuración de salida en formato MP4 FFMPEG
+# Formato MP4
 scene.render.image_settings.file_format = 'FFMPEG'
 scene.render.filepath = output_path
 
