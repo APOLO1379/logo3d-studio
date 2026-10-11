@@ -1,6 +1,7 @@
 import streamlit as st
 import subprocess
 import os
+import glob
 import numpy as np
 from PIL import Image
 
@@ -22,19 +23,14 @@ with col_left:
     else:
         file_png = st.file_uploader("Sube tu logo en PNG:", type=["png"])
         if file_png is not None:
-            # Guardar PNG temporalmente
-            temp_png = "temp_input.png"
             temp_bmp = "temp_input.bmp"
             svg_path = os.path.abspath("temp_logo.svg")
             
             img = Image.open(file_png).convert('RGBA')
-            
-            # Crear silueta monocromática para vectorizar
             alpha = np.array(img)[:, :, 3]
             silueta = Image.fromarray((alpha > 128).astype(np.uint8) * 255)
             silueta.save(temp_bmp)
             
-            # Usar potrace instalado en el sistema Linux
             subprocess.run(["potrace", temp_bmp, "-s", "-o", svg_path], check=True)
             
             contenido = svg_path
@@ -50,10 +46,12 @@ with col_left:
 with col_right:
     st.subheader("3. Vista Previa / Resultado")
     if btn_generar and contenido:
-        with st.spinner("Blender está renderizando la animación en 3D... (Toma unos segundos)"):
+        with st.spinner("Blender está renderizando la animación en 3D..."):
+            # Limpiar videos viejos
+            for f in glob.glob("*.mp4"):
+                os.remove(f)
+                
             output_video = os.path.abspath("logo_3d.mp4")
-            if os.path.exists(output_video):
-                os.remove(output_video)
                 
             cmd = [
                 "blender", "-b",
@@ -68,19 +66,25 @@ with col_right:
             
             result = subprocess.run(cmd, capture_output=True, text=True)
             
-            if os.path.exists(output_video + "0001-0060.mp4"):
-                os.rename(output_video + "0001-0060.mp4", output_video)
+            # Detectar el video generado sin importar el nombre exacto que le ponga Blender
+            archivos_mp4 = glob.glob("*.mp4")
+            video_final = None
+            
+            if archivos_mp4:
+                video_final = archivos_mp4[0]
 
-            if os.path.exists(output_video):
-                st.video(output_video)
-                with open(output_video, "rb") as file:
-                    st.download_button(
-                        label="📥 Descargar Video MP4",
-                        data=file,
-                        file_name="logo_3d_animado.mp4",
-                        mime="video/mp4",
-                        use_container_width=True
-                    )
+            if video_final and os.path.getsize(video_final) > 0:
+                with open(video_final, "rb") as file:
+                    video_bytes = file.read()
+                    
+                st.video(video_bytes)
+                st.download_button(
+                    label="📥 Descargar Video MP4",
+                    data=video_bytes,
+                    file_name="logo_3d_animado.mp4",
+                    mime="video/mp4",
+                    use_container_width=True
+                )
             else:
-                st.error("Ocurrió un error durante el renderizado.")
+                st.error("Error al generar el video.")
                 st.code(result.stderr)
