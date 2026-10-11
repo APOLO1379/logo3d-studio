@@ -4,7 +4,7 @@ import os
 import cv2
 import numpy as np
 from PIL import Image
-import potrace
+import potracer
 
 st.set_page_config(page_title="Studio 3D Logos", layout="wide")
 st.title("🎬 Creador & Animador de Logos 3D")
@@ -24,10 +24,10 @@ with col_left:
     else:
         file_png = st.file_uploader("Sube tu logo en PNG:", type=["png"])
         if file_png is not None:
-            # Procesar imagen con Potrace
+            # Procesar imagen con potracer
             img = Image.open(file_png).convert('L')
             data = np.array(img) < 128
-            bmp = potrace.Bitmap(data)
+            bmp = potracer.Bitmap(data)
             path = bmp.trace()
             
             svg_path = "temp_logo.svg"
