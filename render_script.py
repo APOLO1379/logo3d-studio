@@ -34,7 +34,7 @@ if modo == "texto":
     obj = bpy.context.object
     obj.data.body = contenido
     obj.data.align_x = 'CENTER'
-    obj.data.align_y = 'CENTER'  # Corregido: 'CENTER' en lugar de 'MIDDLE'
+    obj.data.align_y = 'CENTER'
     obj.data.extrude = 0.15
     obj.data.bevel_depth = 0.02
     obj.rotation_euler = (math.radians(90), 0, 0)
@@ -75,7 +75,11 @@ if efecto == "rotacion":
     obj.keyframe_insert(data_path="rotation_euler", index=2, frame=60)
 
 # 6. Configurar Renderizado EEVEE
-scene.render.engine = 'BLENDER_EEVEE_NEXT' if hasattr(bpy.types, 'BLENDER_EEVEE_NEXT') else 'BLENDER_EEVEE'
+try:
+    scene.render.engine = 'BLENDER_EEVEE'
+except Exception:
+    scene.render.engine = 'CYCLES'
+
 scene.render.image_settings.file_format = 'FFMPEG'
 scene.ffmpeg.format = 'MPEG4'
 scene.ffmpeg.codec = 'H264'
