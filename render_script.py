@@ -40,11 +40,14 @@ if modo == "texto":
     obj.rotation_euler = (math.radians(90), 0, 0)
 elif modo == "svg":
     bpy.ops.import_curve.svg(filepath=contenido)
-    for o in bpy.context.selected_objects:
+    # Filtrar solo objetos tipo CURVE para evitar tocar luces o cámaras
+    curvas_importadas = [o for o in bpy.context.selected_objects if o.type == 'CURVE']
+    for o in curvas_importadas:
         o.data.extrude = 0.1
         o.data.bevel_depth = 0.01
         o.rotation_euler = (math.radians(90), 0, 0)
-    obj = bpy.context.selected_objects[0]
+    if curvas_importadas:
+        obj = curvas_importadas[0]
 
 # 4. Crear y Asignar Materiales
 mat = bpy.data.materials.new(name="MaterialLogo")
@@ -61,14 +64,15 @@ elif material_tipo == "cromo":
     bsdf.inputs['Metallic'].default_value = 1.0
     bsdf.inputs['Roughness'].default_value = 0.05
 
-obj.data.materials.append(mat)
+if 'obj' in locals():
+    obj.data.materials.append(mat)
 
 # 5. Configurar Animación
 scene = bpy.context.scene
 scene.frame_start = 1
 scene.frame_end = 60  # 60 fotogramas
 
-if efecto == "rotacion":
+if efecto == "rotacion" and 'obj' in locals():
     obj.rotation_mode = 'XYZ'
     obj.keyframe_insert(data_path="rotation_euler", index=2, frame=1)
     obj.rotation_euler[2] = math.radians(360)
